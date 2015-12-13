@@ -1,62 +1,22 @@
-USE_STD_ENV = true
-
 class Webkitgtk24 < Formula
-  # This formula is ported from (or based on) the following MacPorts port:
-  # https://svn.macports.org/repository/macports/trunk/dports/www/webkit-gtk/Portfile
-
-  # also relevant:
-  # https://github.com/jralls/gtk-osx-build/blob/master/modulesets/gtk-osx-network.modules#L131-L162
-
   desc "Full-featured Gtk+ port of the WebKit rendering engine"
   homepage "http://webkitgtk.org"
   url "http://webkitgtk.org/releases/webkitgtk-2.4.9.tar.xz"
   sha256 "afdf29e7828816cad0be2604cf19421e96d96bf493987328ffc8813bb20ac564"
 
-  conflicts_with "webkitgtk"
-
   needs :cxx11
 
-  # TODO: how can we switch back to superenv while not making parallel make hang?
-  env :std if USE_STD_ENV
+  option "without-video", "disable HTML5 video object support"
+  option "without-webgl", "disable WebGL support"
 
-  option "without-geolocation", "DISABLE geolocation support"
-  option "without-video", "DISABLE HTML5 video object support"
-  option "without-introspection", "DISABLE GObject introspection"
-  option "without-webgl", "DISABLE WebGL support"
-
-  # the original Portfile says (and it seems to hold):
-  #
-  # > Apple's gnumake (patched 3.81) gets wedged at some point during the build process
-  #
-  # so we make this optional and disable parallelism if Apple's make is used
-  option "with-apple-gnumake", "use Apple's gnumake at /usr/bin/make"
-
-  # let's still keep these to draw attention
-  option "without-svg", "(not supported) DISABLE SVG support"
-  option "with-gtk-doc", "(not supported) ENABLE documentation generation"
-  option "with-accelerated-compositing", "(not supported) ENABLE accelerated compositing support"
-  option "with-jit", "(not supported) ENABLE JIT compilation support"
-  option "with-web-audio", "(not supported) ENABLE web-audio support"
-  option "with-webkit2", "(not supported) ENABLE WebKit 2 support"
-
-  bottle do
-    sha256 "a1d3ad20a44da0a303f957a2259be0311a730e94c2f3d716d2f9c300c173adbe" => :el_capitan
-    sha256 "500f31ae4c8ebbc19d0a85a8bd2573e8102804ec7f7d9e172e3a01ea689a0865" => :yosemite
-    sha256 "0c66a6ad12c4ced2741332a0e6e60510ef2e0a9f739597e9fb2b5117e31454ea" => :mavericks
-  end
-
-  depends_on "make"       => :build if build.without? "apple-gnumake"
-  depends_on "autoconf"   => :build
-  depends_on "automake"   => :build
-  depends_on "libtool"    => :build
-  depends_on "perl"       => :build
+  depends_on "autoconf" => :build
+  depends_on "automake" => :build
+  depends_on "perl" => :build
   depends_on "pkg-config" => :build
-  depends_on "python"     => :build
+  depends_on "python" => :build if MacOS.version <= :snow_leopard
 
   depends_on "glib"
   depends_on "gtk+3"
-  depends_on "bison"
-  depends_on "flex"
   depends_on "enchant"
   depends_on "libffi"
   depends_on "harfbuzz"
@@ -68,112 +28,18 @@ class Webkitgtk24 < Formula
   depends_on "sqlite"
   depends_on "webp"
 
-  depends_on "geoclue"               if build.with? "geolocation"
-  depends_on "gobject-introspection" if build.with? "introspection"
+  depends_on "geoclue" => :recommended
+  depends_on "gobject-introspection" => :recommended
 
-  # TODO: not sure if web-audio also requires gstreamer & gst-plugins-base
-  if (build.with? "web-audio") || (build.with? "video")
+  if build.with? "video"
     depends_on "gstreamer"
     depends_on "gst-plugins-base"
   end
 
-  # https://lists.webkit.org/pipermail/webkit-gtk/2013-November/001630.html
-  depends_on "gtk+" if build.with? "webkit2"
-
-  depends_on "gtk-doc" => :build if build.with? "gtk-doc"
-
-  ### BEGIN BROKEN FEATURE WARNINGS
-
-  # see https://bugs.webkit.org/show_bug.cgi?id=126438
-  #     https://bugs.webkit.org/show_bug.cgi?id=126437
-  opoo "web-audio support is currently broken; see the formula for details"               if build.with? "web-audio"
-
-  # see https://bugs.webkit.org/show_bug.cgi?id=133293
-  opoo "JIT compilation support is currently broken; see the formula for details"         if build.with? "jit"
-
-  # see https://trac.macports.org/ticket/41663
-  opoo "accelerated compositing support is currently broken; see the formula for details" if build.with? "accelerated-compositing"
-
-  # see https://lists.webkit.org/pipermail/webkit-gtk/2013-November/001629.html
-  #
-  # ATTENTION: enable this by default, if possible, but then also see the
-  # corresponding patch block below.
-  #
-  opoo "WebKit 2 support is currently broken; see the formula for details"                if build.with? "webkit2"
-
-  # disabling SVG appears to fail the build
-  #    "error: use of undeclared identifier 'CSSValueAlphabetic'"
-  #
-  # see https://lists.webkit.org/pipermail/webkit-dev/2014-January/026166.html
-  opoo "building without SVG support is currently broken; see the formula for details"    if build.without? "svg"
-
-  # odie "GObject introspection support is currently broken; see the formula for details"   if     build.with? "introspection"
-
-  ### END BROKEN FEATURE WARNINGS
-
+  # see the inline comments
   patch :DATA
 
   def install
-    make_command = (build.with? "apple-gnumake") ? "make" : "gmake"
-
-    do_replaces
-
-    @configure_args = [
-      "--prefix=#{prefix}",
-
-      # see https://lists.webkit.org/pipermail/webkit-unassigned/2014-November/645071.html
-      "--enable-dependency-tracking",
-
-      # https://bugs.webkit.org/show_bug.cgi?id=94488
-      # "--disable-dependency-tracking",
-
-      "--enable-x11-target=no",
-      "--enable-quartz-target=yes",
-      "--enable-wayland-target=no",
-    ]
-
-    flags = ["web-audio", "video", "webgl", "geolocation", "svg", "jit",
-             "accelerated-compositing", "webkit2", "gtk-doc", "introspection"]
-    flags.each do |opt|
-      enable_or_disable = (build.with? opt) ? "enable" : "disable"
-      @configure_args.push "--#{enable_or_disable}-#{opt}"
-    end
-
-    # from the original Portfile
-    ENV.append ["CFLAGS", "CXXFLAGS"], "-ftemplate-depth=256"
-    ENV.append "CXXFLAGS", "-Wno-c++11-extensions"
-    ENV.append "CPPFLAGS", "-DGTEST_USE_OWN_TR1_TUPLE=1"
-
-    # from https://github.com/jralls/gtk-osx-build/blob/master/modulesets/gtk-osx-network.modules#L131-L162
-    ENV.append "CXXFLAGS", "-std=gnu++11"
-
-    if (build.with? "apple-gnumake") || !USE_STD_ENV
-      # (see also http://stackoverflow.com/a/34206868/247623)
-      #
-      # without `env :std` and without `ENV.deparallelize`, make will stall at:
-      #
-      #     libtool: link: (cd ... && rm -rf ...)
-      #
-      opoo "non-parallelized builds can be very slow"
-
-      ENV.deparallelize
-      #
-      # consider also (but this seemed to offer no help for me):
-      #
-      # ENV['LIPO'] = "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/lipo"
-    end
-
-    system "autoreconf", "-fvi"
-
-    system "./configure", *@configure_args
-
-    system make_command, "-w", "all", "V=1"
-    system make_command, "install-am"
-    system make_command, "all-am"
-    system make_command, "WebKitGTK-3.0.pot-update"
-  end
-
-  def do_replaces
     # https://bugs.webkit.org/show_bug.cgi?id=126433
     inreplace "Source/JavaScriptCore/API/WebKitAvailability.h",
               "defined(__APPLE__)",
@@ -185,23 +51,52 @@ class Webkitgtk24 < Formula
       "#define PLATFORM(MAC)",
     ]
 
-    # https://bugs.webkit.org/show_bug.cgi?id=126325
-    #
-    # original reinplace call in Portfile is:
-    #     reinplace "s:-stdlib=libstdc\+\+::" ${worksrcpath}/Source/autotools/SetupCompilerFlags.m4
-    #
-    # ...but the actual line in that file is:
-    #     AS_CASE([$CXXFLAGS], [*-stdlib=*], [], [CXXFLAGS="$CXXFLAGS -stdlib=libc++"])
-    #
-    # so let's try this instead:
-    # inreplace "Source/autotools/SetupCompilerFlags.m4",
-    #           "-stdlib=libc++",
-    #           ""
-
     # https://bugs.webkit.org/show_bug.cgi?id=126329
     inreplace "Source/JavaScriptCore/API/JSBase.h",
               /^#define JSC_OBJC_API_ENABLED.*$/,
               "#define JSC_OBJC_API_ENABLED 0"
+
+    args = %W[
+      --prefix=#{prefix}
+
+      --enable-dependency-tracking
+
+      --enable-x11-target=no
+      --enable-quartz-target=yes
+      --enable-wayland-target=no
+      --disable-accelerated-compositing
+      --disable-jit
+      --with-svg
+      --without-web-audio
+      --without-webkit2
+      --without-gtk-doc
+    ]
+
+    args.push flag_for("video"),
+              flag_for("webgl"),
+              flag_for("geoclue", "geolocation"),
+              flag_for("gobject-introspection", "introspection")
+
+    # from the original Portfile
+    ENV.append ["CFLAGS", "CXXFLAGS"], "-ftemplate-depth=256"
+    ENV.append "CXXFLAGS", "-Wno-c++11-extensions"
+    ENV.append "CPPFLAGS", "-DGTEST_USE_OWN_TR1_TUPLE=1"
+
+    # from https://github.com/jralls/gtk-osx-build/blob/master/modulesets/gtk-osx-network.modules#L131-L162
+    ENV.append "CXXFLAGS", "-std=gnu++11"
+
+    # this will make the build much much slower, but if you remove it,
+    # you most likely also have to use non-Apple gnumake and env :std
+    ENV.deparallelize
+
+    system "autoreconf", "-fvi"
+
+    system "./configure", *args
+
+    system "make", "-w", "all", "V=1"
+    system "make", "install-am"
+    system "make", "all-am"
+    system "make", "WebKitGTK-3.0.pot-update"
   end
 
   def prepend_lines(fname, lines)
@@ -209,6 +104,10 @@ class Webkitgtk24 < Formula
     lines_str = lines.map { |x| x + "\n" }.join
     new = lines_str + old
     File.open(fname, "w") { |f| f.puts new }
+  end
+
+  def flag_for(opt, flag_name = opt)
+    "--#{(build.with? opt) ? "enable" : "disable"}-#{flag_name}"
   end
 end
 
