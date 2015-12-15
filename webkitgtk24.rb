@@ -28,7 +28,7 @@ class Webkitgtk24 < Formula
   depends_on "sqlite"
   depends_on "webp"
 
-  depends_on "geoclue" => :recommended
+  depends_on "homebrew/x11/geoclue" => :recommended
   depends_on "gobject-introspection" => :recommended
 
   if build.with? "video"
@@ -58,9 +58,7 @@ class Webkitgtk24 < Formula
 
     args = %W[
       --prefix=#{prefix}
-
       --enable-dependency-tracking
-
       --enable-x11-target=no
       --enable-quartz-target=yes
       --enable-wayland-target=no
@@ -74,7 +72,7 @@ class Webkitgtk24 < Formula
 
     args.push flag_for("video"),
               flag_for("webgl"),
-              flag_for("geoclue", "geolocation"),
+              flag_for("homebrew/x11/geoclue", "geolocation"),
               flag_for("gobject-introspection", "introspection")
 
     # from the original Portfile
