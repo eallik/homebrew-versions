@@ -70,10 +70,10 @@ class Webkitgtk24 < Formula
       --without-gtk-doc
     ]
 
-    args.push flag_for("video"),
-              flag_for("webgl"),
-              flag_for("homebrew/x11/geoclue", "geolocation"),
-              flag_for("gobject-introspection", "introspection")
+    args << build.with?("video") ? "--enable-video" : "--disable-video"
+    args << build.with?("webgl") ? "--enable-webgl" : "--disable-webgl"
+    args << build.with?("homebrew/x11/geoclue") ? "--enable-geolocation" : "--disable-geolocation"
+    args << build.with?("gobject-introspection") ? "--enable-geolocation" : "--disable-geolocation"
 
     # from the original Portfile
     ENV.append ["CFLAGS", "CXXFLAGS"], "-ftemplate-depth=256"
@@ -83,8 +83,6 @@ class Webkitgtk24 < Formula
     # from https://github.com/jralls/gtk-osx-build/blob/master/modulesets/gtk-osx-network.modules#L131-L162
     ENV.append "CXXFLAGS", "-std=gnu++11"
 
-    # this will make the build much much slower, but if you remove it,
-    # you most likely also have to use non-Apple gnumake and env :std
     ENV.deparallelize
 
     system "autoreconf", "-fvi"
