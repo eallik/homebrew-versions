@@ -14,6 +14,7 @@ class Webkitgtk24 < Formula
   depends_on "perl" => :build
   depends_on "pkg-config" => :build
   depends_on "python" => :build if MacOS.version <= :snow_leopard
+  depends_on "libtool" => :build  # for glibtoolize
 
   depends_on "glib"
   depends_on "gtk+3"
